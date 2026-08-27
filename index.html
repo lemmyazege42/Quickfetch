@@ -236,6 +236,9 @@ section{padding:88px 5%;}
 .qp::before{content:'✓';width:22px;height:22px;background:rgba(244,121,32,0.12);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:900;color:var(--orange);flex-shrink:0;margin-top:1px;}
 .quote-form{background:#fff;border-radius:var(--radius);padding:36px;box-shadow:0 4px 28px rgba(0,0,0,0.07);}
 .quote-form h3{font-size:22px;font-weight:900;color:var(--navy-dark);margin-bottom:24px;}
+.quote-cat-tab{border:2px solid #e5e7eb;background:#fff;color:var(--navy-dark);font-size:13px;font-weight:700;padding:10px 16px;border-radius:8px;cursor:pointer;transition:all .15s;}
+.quote-cat-tab:hover{border-color:var(--orange);}
+.quote-cat-tab.active{border-color:var(--orange);background:var(--orange);color:#fff;}
 .form-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;}
 .fg{display:flex;flex-direction:column;gap:5px;margin-bottom:14px;}
 .fg label{font-size:12px;font-weight:700;color:var(--navy-dark);letter-spacing:0.3px;}
@@ -455,6 +458,11 @@ footer{background:var(--navy-dark);padding:56px 5% 24px;border-top:3px solid var
               <div class="track-meta-item"><label>Last Update</label><span id="tr-time"></span></div>
             </div>
           </div>
+          <div id="podWrap" style="display:none;background:#f0fdf4;border:1.5px solid #16a34a;border-radius:10px;padding:16px;margin-bottom:20px;">
+            <div style="font-size:13px;font-weight:700;color:#16a34a;margin-bottom:8px;">✓ Delivered</div>
+            <div id="pod-received-by" style="font-size:13px;color:#166534;margin-bottom:4px;"></div>
+            <div id="pod-photo-wrap"></div>
+          </div>
           <div class="stages-wrap" id="stagesWrap"></div>
         </div>
       </div>
@@ -512,6 +520,12 @@ footer{background:var(--navy-dark);padding:56px 5% 24px;border-top:3px solid var
       <div class="svc-icon">📦</div>
       <h3>Groupage</h3>
       <p>Not shipping a full container? We consolidate your cargo with other shipments so you only pay for the space you use. Great for smaller commercial consignments.</p>
+      <a href="#quote" class="svc-link">Get a Quote →</a>
+    </div>
+    <div class="svc-card">
+      <div class="svc-icon">🚚</div>
+      <h3>Domestic Delivery</h3>
+      <p>Fast inter-state and intra-state delivery across Nigeria. Send within your state or across the country, with real-time tracking from pickup to your doorstep.</p>
       <a href="#quote" class="svc-link">Get a Quote →</a>
     </div>
     <div class="svc-card">
@@ -886,31 +900,63 @@ footer{background:var(--navy-dark);padding:56px 5% 24px;border-top:3px solid var
       </div>
       <div class="form-row">
         <div class="fg"><label>Phone Number *</label><input type="tel" id="q-phone" placeholder="+234 or +44..."/></div>
-        <div class="fg"><label>Freight Type *</label>
-          <select id="q-freight">
-            <option value="">Select freight type</option>
-            <option>Air Freight</option><option>Sea Freight</option>
-            <option>Shop & Ship</option><option>Groupage</option><option>Not Sure Yet</option>
-          </select>
+        <div class="fg"><label>Weight (kg) *</label><input type="text" id="q-weight" placeholder="e.g. 10kg, 50kg, not sure yet"/></div>
+      </div>
+
+      <div class="fg" style="margin-bottom:10px;"><label>What kind of shipment is this? *</label></div>
+      <div id="quote-category-tabs" style="display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap;">
+        <button type="button" class="quote-cat-tab" data-cat="international" onclick="selectQuoteCategory('international')">🌍 International</button>
+        <button type="button" class="quote-cat-tab" data-cat="inter-state" onclick="selectQuoteCategory('inter-state')">🚚 Inter-State (Nigeria)</button>
+        <button type="button" class="quote-cat-tab" data-cat="intra-state" onclick="selectQuoteCategory('intra-state')">🏍️ Intra-State (Nigeria)</button>
+      </div>
+
+      <div id="qc-international" style="display:none;">
+        <div class="form-row">
+          <div class="fg"><label>Freight Type *</label>
+            <select id="q-freight">
+              <option value="">Select freight type</option>
+              <option>Air Freight</option><option>Sea Freight</option>
+              <option>Shop & Ship</option><option>Groupage</option>
+              <option>Not Sure Yet</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="fg"><label>Origin Country *</label>
+            <select id="q-origin">
+              <option value="">Where from?</option>
+              <option>Nigeria</option><option>United Kingdom</option>
+              <option>United States</option><option>Canada</option><option>Europe</option>
+            </select>
+          </div>
+          <div class="fg"><label>Destination Country *</label>
+            <select id="q-dest">
+              <option value="">Where to?</option>
+              <option>Nigeria</option><option>United Kingdom</option>
+              <option>United States</option><option>Canada</option><option>Europe</option>
+            </select>
+          </div>
         </div>
       </div>
-      <div class="form-row">
-        <div class="fg"><label>Origin Country *</label>
-          <select id="q-origin">
-            <option value="">Where from?</option>
-            <option>Nigeria</option><option>United Kingdom</option>
-            <option>United States</option><option>Canada</option><option>Europe</option>
-          </select>
-        </div>
-        <div class="fg"><label>Destination Country *</label>
-          <select id="q-dest">
-            <option value="">Where to?</option>
-            <option>Nigeria</option><option>United Kingdom</option>
-            <option>United States</option><option>Canada</option><option>Europe</option>
-          </select>
+
+      <div id="qc-inter-state" style="display:none;">
+        <p style="font-size:12px;color:var(--text);margin-bottom:14px;">For a shipment moving between two different states within Nigeria.</p>
+        <div class="form-row">
+          <div class="fg"><label>Origin State *</label>
+            <select id="q-inter-origin"></select>
+          </div>
+          <div class="fg"><label>Destination State *</label>
+            <select id="q-inter-dest"></select>
+          </div>
         </div>
       </div>
-      <div class="fg"><label>Estimated Weight (kg)</label><input type="text" id="q-weight" placeholder="e.g. 10kg, 50kg, not sure yet"/></div>
+
+      <div id="qc-intra-state" style="display:none;">
+        <p style="font-size:12px;color:var(--text);margin-bottom:14px;">For a shipment moving within the same state in Nigeria.</p>
+        <div class="fg"><label>Your State *</label>
+          <select id="q-intra-state"></select>
+        </div>
+      </div>
 
       <!-- Delivery Address -->
       <div style="margin:20px 0 6px;">
@@ -1114,7 +1160,10 @@ footer{background:var(--navy-dark);padding:56px 5% 24px;border-top:3px solid var
     <div class="f-col">
       <h5>Navigation</h5>
       <ul>
-        <li><a href="#home">Home</a></li>`r`n        <li><a href="#tracking">Track Shipment</a></li>`r`n        <li><a href="#services">Services</a></li>`r`n        <li><a href="#pricing">Shipping Rates</a></li>
+        <li><a href="#home">Home</a></li>
+        <li><a href="#tracking">Track Shipment</a></li>
+        <li><a href="#services">Services</a></li>
+        <li><a href="#pricing">Shipping Rates</a></li>
         <li><a href="#shopship">Shop & Ship</a></li>
         <li><a href="#contact">Contact</a></li>
         <li><a href="#terms">Terms &amp; Policies</a></li>
@@ -1127,6 +1176,7 @@ footer{background:var(--navy-dark);padding:56px 5% 24px;border-top:3px solid var
         <li><a href="#services">Sea Freight</a></li>
         <li><a href="#shopship">Shop & Ship</a></li>
         <li><a href="#services">Groupage</a></li>
+        <li><a href="#services">Domestic Delivery</a></li>
         <li><a href="#quote">Get a Quote</a></li>
       </ul>
     </div>
@@ -1290,17 +1340,70 @@ const ROUTE_STAGES={
     {label:'Ready for Collection',location:'Local Sorting Hub, Ikeja, Lagos, Nigeria.',desc:'Your shipment is ready for collection from our sorting hub during business hours.'},
     {label:'Out for Delivery',location:'Customer Delivery Address',desc:'Your shipment has been loaded onto our delivery vehicle and is out for delivery. Delivery is within 24-48 working hours.'},
     {label:'Delivered',location:'Customer Delivery Address',desc:'Your shipment has been successfully delivered to the destination address. Thank you for choosing Quickfetch Logistics.'}
+  ],
+  'inter-state':[
+    {label:'Shipment Booked',location:'Collection Location',desc:'Your shipment has been booked and is awaiting collection or drop-off.'},
+    {label:'Shipment Received',location:'Local Hub',desc:'Your shipment has been received at our local hub and is being processed.'},
+    {label:'Processing & Sorting',location:'Local Hub',desc:'Your shipment is being checked, sorted and prepared for onward transportation.'},
+    {label:'In Transit',location:'En Route',desc:'Your shipment has departed the origin hub and is currently in transit to the destination region.'},
+    {label:'Arrived at Destination Hub',location:'Destination Hub',desc:'Your shipment has arrived at the destination hub and is being prepared for local delivery.'},
+    {label:'Assigned for Delivery',location:'Destination Hub',desc:'Your shipment has been assigned to a local delivery route and is awaiting dispatch.'},
+    {label:'Out for Delivery',location:'Delivery Area',desc:'Your shipment is with our delivery team and is scheduled for delivery.'},
+    {label:'Delivered',location:'Customer Address',desc:'Your shipment has been successfully delivered to the recipient.'}
+  ],
+  'intra-state':[
+    {label:'Shipment Received',location:'Local Processing Hub',desc:'Your shipment has been received at our local hub and is being processed.'},
+    {label:'Processing & Sorting',location:'Local Processing Hub',desc:'Your shipment is being checked, sorted and prepared for delivery within the state.'},
+    {label:'Assigned for Delivery',location:'Local Processing Hub',desc:'Your shipment has been assigned to a local delivery route and is awaiting dispatch.'},
+    {label:'Out for Delivery',location:'Delivery Area',desc:'Your shipment is with our delivery team and is scheduled for delivery.'},
+    {label:'Delivered',location:'Customer Address',desc:'Your shipment has been successfully delivered to the recipient.'}
   ]
 };
+
+const NIGERIAN_STATES=['Abia','Adamawa','Akwa Ibom','Anambra','Bauchi','Bayelsa','Benue','Borno','Cross River','Delta','Ebonyi','Edo','Ekiti','Enugu','Gombe','Imo','Jigawa','Kaduna','Kano','Katsina','Kebbi','Kogi','Kwara','Lagos','Nasarawa','Niger','Ogun','Ondo','Osun','Oyo','Plateau','Rivers','Sokoto','Taraba','Yobe','Zamfara','FCT - Abuja'];
+const COUNTRY_OPTIONS=['Nigeria','United Kingdom','United States','Canada','Europe'];
+
+function isDomesticFreight(freightType){
+  return (freightType||'').toLowerCase().includes('domestic');
+}
 
 function getRouteCode(shipment){
   const route=(shipment&&shipment.route_code)||'';
   if(route) return route;
   const origin=((shipment&&shipment.origin)||'').toLowerCase();
   const destination=((shipment&&shipment.destination)||'').toLowerCase();
+  const freight=(shipment&&shipment.freight_type)||'';
+  if(isDomesticFreight(freight)){
+    return origin.trim() && origin.trim()===destination.trim() ? 'intra-state' : 'inter-state';
+  }
   if(origin.includes('united kingdom')&&destination.includes('nigeria')) return 'uk-ng';
   return 'ng-uk';
 }
+
+// ===== QUOTE FORM: category tabs control which fields show =====
+function fillSelect(sel,values,placeholder){
+  sel.innerHTML=`<option value="">${placeholder}</option>`+values.map(v=>`<option>${v}</option>`).join('');
+}
+
+let quoteCategory='international';
+
+function selectQuoteCategory(cat){
+  quoteCategory=cat;
+  document.querySelectorAll('.quote-cat-tab').forEach(btn=>{
+    btn.classList.toggle('active',btn.dataset.cat===cat);
+  });
+  document.getElementById('qc-international').style.display=cat==='international'?'block':'none';
+  document.getElementById('qc-inter-state').style.display=cat==='inter-state'?'block':'none';
+  document.getElementById('qc-intra-state').style.display=cat==='intra-state'?'block':'none';
+}
+
+function initQuoteForm(){
+  fillSelect(document.getElementById('q-inter-origin'),NIGERIAN_STATES,'Where from?');
+  fillSelect(document.getElementById('q-inter-dest'),NIGERIAN_STATES,'Where to?');
+  fillSelect(document.getElementById('q-intra-state'),NIGERIAN_STATES,'Select your state');
+  selectQuoteCategory('international');
+}
+document.addEventListener('DOMContentLoaded',initQuoteForm);
 
 function getStages(shipment){
   return ROUTE_STAGES[getRouteCode(shipment)]||ROUTE_STAGES['ng-uk'];
@@ -1394,34 +1497,41 @@ async function doTrack(){
     document.getElementById('tr-status').innerHTML='<span class="status-badge">'+title+'</span>';
     document.getElementById('tr-created').textContent=s.created_date||'-';
     document.getElementById('tr-time').textContent=updateTime;
+
+    // Show proof-of-delivery (photo + who received it) once the shipment is
+    // actually on its final ("Delivered") stage.
+    const podWrap=document.getElementById('podWrap');
+    if(step===maxStage && (s.proof_of_delivery_url||s.received_by)){
+      podWrap.style.display='block';
+      document.getElementById('pod-received-by').innerHTML=s.received_by?`<strong>Received by:</strong> ${s.received_by}`:'';
+      document.getElementById('pod-photo-wrap').innerHTML=s.proof_of_delivery_url?`<a href="${s.proof_of_delivery_url}" target="_blank" rel="noopener"><img src="${s.proof_of_delivery_url}" style="width:100%;max-width:360px;border-radius:8px;display:block;margin-top:6px;" alt="Proof of delivery"/></a>`:'';
+    } else {
+      podWrap.style.display='none';
+    }
     const wrap=document.getElementById('stagesWrap');
     wrap.innerHTML='';
+    // Only show stages up to and including the current one - future stages
+    // stay hidden until the shipment actually reaches them.
     stages.forEach((st,i)=>{
-      const done=i<step,active=i===step,future=i>step;
+      if(i>step) return;
+      const done=i<step,active=i===step;
       const row=document.createElement('div');row.className='stage-row';
       const left=document.createElement('div');left.className='stage-left';
-      const dot=document.createElement('div');dot.className='stage-dot '+(done?'done':active?'active':'future');
+      const dot=document.createElement('div');dot.className='stage-dot '+(done?'done':'active');
       dot.textContent=done?'?':String(i+1);
-      dot.style.cssText=done?'background:var(--navy-dark);color:#fff;font-size:12px;':active?'background:var(--orange);color:#fff;font-size:12px;font-weight:700;':'background:#f0f1f5;color:#9ca3af;font-size:12px;font-weight:700;';
+      dot.style.cssText=done?'background:var(--navy-dark);color:#fff;font-size:12px;':'background:var(--orange);color:#fff;font-size:12px;font-weight:700;';
       left.appendChild(dot);
-      if(i<stages.length-1){const line=document.createElement('div');line.className='stage-line';line.style.background=done?'var(--navy-dark)':'#e5e7eb';left.appendChild(line);}
+      if(i<step){const line=document.createElement('div');line.className='stage-line';line.style.background='var(--navy-dark)';left.appendChild(line);}
       const body=document.createElement('div');body.className='stage-body';
       const record=history.find(item=>String(item.status)===String(i));
-      if(done||active){
-        const details=document.createElement('details');details.className='stage-details';details.open=active;
-        const summary=document.createElement('summary');
-        summary.innerHTML=`<span class="stage-summary-main"><span class="stage-summary-title">${record&&record.title?record.title:(active?title:st.label)}</span><span class="stage-summary-meta">${record&&record.location?record.location:st.location}</span></span><span class="stage-chevron">View</span>`;
-        const detailBody=document.createElement('div');detailBody.className='stage-detail-body';
-        detailBody.innerHTML=`<div class="stage-detail-grid"><div><label>Updated</label><span>${record&&record.time?record.time:'Pending time'}</span></div><div><label>Location</label><span>${record&&record.location?record.location:st.location}</span></div></div><p>${record&&record.activity?record.activity:st.desc}</p>`;
-        details.appendChild(summary);
-        details.appendChild(detailBody);
-        body.appendChild(details);
-      } else {
-        const lbl=document.createElement('div');lbl.className='s-label future';lbl.textContent=st.label;
-        const loc=document.createElement('div');loc.className='s-desc';loc.textContent=st.location;
-        body.appendChild(lbl);
-        body.appendChild(loc);
-      }
+      const details=document.createElement('details');details.className='stage-details';details.open=active;
+      const summary=document.createElement('summary');
+      summary.innerHTML=`<span class="stage-summary-main"><span class="stage-summary-title">${record&&record.title?record.title:(active?title:st.label)}</span><span class="stage-summary-meta">${record&&record.location?record.location:st.location}</span></span><span class="stage-chevron">View</span>`;
+      const detailBody=document.createElement('div');detailBody.className='stage-detail-body';
+      detailBody.innerHTML=`<div class="stage-detail-grid"><div><label>Updated</label><span>${record&&record.time?record.time:'Pending time'}</span></div><div><label>Location</label><span>${record&&record.location?record.location:st.location}</span></div></div><p>${record&&record.activity?record.activity:st.desc}</p>`;
+      details.appendChild(summary);
+      details.appendChild(detailBody);
+      body.appendChild(details);
       row.appendChild(left);row.appendChild(body);wrap.appendChild(row);
     });
     rEl.style.display='block';
@@ -1524,10 +1634,24 @@ async function submitQuote(){
   const name=document.getElementById('q-name').value.trim();
   const email=document.getElementById('q-email').value.trim();
   const phone=document.getElementById('q-phone').value.trim();
-  const freight=document.getElementById('q-freight').value;
-  const origin=document.getElementById('q-origin').value;
-  const dest=document.getElementById('q-dest').value;
   const weight=document.getElementById('q-weight').value.trim();
+
+  // Freight type + origin/destination come from whichever category tab is active
+  let freight='',origin='',dest='';
+  if(quoteCategory==='international'){
+    freight=document.getElementById('q-freight').value;
+    origin=document.getElementById('q-origin').value;
+    dest=document.getElementById('q-dest').value;
+  } else if(quoteCategory==='inter-state'){
+    freight='Domestic Delivery';
+    origin=document.getElementById('q-inter-origin').value;
+    dest=document.getElementById('q-inter-dest').value;
+  } else if(quoteCategory==='intra-state'){
+    freight='Domestic Delivery';
+    origin=document.getElementById('q-intra-state').value;
+    dest=origin;
+  }
+
   const addr1=document.getElementById('q-addr1').value.trim();
   const addr2=document.getElementById('q-addr2').value.trim();
   const city=document.getElementById('q-city').value.trim();
@@ -1542,6 +1666,10 @@ async function submitQuote(){
 
   if(!name||!email||!phone||!freight||!origin||!dest||!addr1||!city||!postcode){
     errorEl.textContent='Please fill in all required fields, including your delivery address.';
+    errorEl.style.display='block';return;
+  }
+  if(quoteCategory==='inter-state' && origin===dest){
+    errorEl.textContent='Origin and destination states are the same - please use "Intra-State" instead, or pick two different states.';
     errorEl.style.display='block';return;
   }
 
@@ -1581,9 +1709,10 @@ async function submitQuote(){
       ['q-name','q-email','q-phone','q-weight','q-addr1','q-addr2','q-city','q-county','q-postcode','q-message'].forEach(id=>{
         const el=document.getElementById(id);if(el)el.value='';
       });
-      ['q-freight','q-origin','q-dest'].forEach(id=>{
+      ['q-freight','q-origin','q-dest','q-inter-origin','q-inter-dest','q-intra-state'].forEach(id=>{
         const el=document.getElementById(id);if(el)el.selectedIndex=0;
       });
+      selectQuoteCategory('international');
     } else {
       errorEl.textContent='Something went wrong. Please try again or contact us on WhatsApp.';
       errorEl.style.display='block';
