@@ -1686,18 +1686,27 @@ async function sendTrackingEmail(shipment){
     return;
   }
   try{
-    await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
-      email: shipment.email,
-      to_name: shipment.full_name || 'Customer',
-      tracking_number: shipment.tracking_number,
-      freight_type: shipment.freight_type,
-      origin: shipment.origin,
-      destination: shipment.destination,
-      logo_url: COMPANY_LOGO_URL
+    const res=await fetch(CONFIG.scriptUrl,{
+      method:'POST',redirect:'follow',
+      headers:{'Content-Type':'text/plain'},
+      body:JSON.stringify({
+        action:'sendBookingEmail',
+        email: shipment.email,
+        full_name: shipment.full_name || 'Customer',
+        tracking_number: shipment.tracking_number,
+        freight_type: shipment.freight_type,
+        origin: shipment.origin,
+        destination: shipment.destination
+      })
     });
-    showToast(`Tracking email sent to ${shipment.email}`,'success');
+    const data=await res.json();
+    if(data && data.success){
+      showToast(`Tracking email sent to ${shipment.email}`,'success');
+    } else {
+      throw new Error((data&&data.error)||'Unknown error');
+    }
   } catch(err){
-    console.error('EmailJS send failed:',err);
+    console.error('Booking email send failed:',err);
     showToast('Shipment created, but email could not be sent. Notify customer manually.','error');
   }
 }
@@ -1708,23 +1717,30 @@ async function sendArrivalEmail(shipment){
     return;
   }
   try{
-    const templateId=getArrivalTemplateId(shipment);
-    await emailjs.send(EMAILJS_SERVICE_ID, templateId, {
-      email: shipment.email,
-      to_name: shipment.full_name || 'Customer',
-      tracking_number: shipment.tracking_number,
-      freight_type: shipment.freight_type,
-      origin: shipment.origin,
-      destination: shipment.destination,
-      update_location: shipment.update_location || '',
-      update_activity: shipment.update_activity || '',
-      arrival_date: formatEmailTimestamp(),
-      tracking_url: TRACKING_PAGE_URL,
-      logo_url: COMPANY_LOGO_URL
+    const res=await fetch(CONFIG.scriptUrl,{
+      method:'POST',redirect:'follow',
+      headers:{'Content-Type':'text/plain'},
+      body:JSON.stringify({
+        action:'sendArrivalEmail',
+        email: shipment.email,
+        full_name: shipment.full_name || 'Customer',
+        tracking_number: shipment.tracking_number,
+        freight_type: shipment.freight_type,
+        origin: shipment.origin,
+        destination: shipment.destination,
+        update_location: shipment.update_location || '',
+        update_activity: shipment.update_activity || '',
+        arrival_date: formatEmailTimestamp()
+      })
     });
-    showToast(`Arrival email sent to ${shipment.email}`,'success');
+    const data=await res.json();
+    if(data && data.success){
+      showToast(`Arrival email sent to ${shipment.email}`,'success');
+    } else {
+      throw new Error((data&&data.error)||'Unknown error');
+    }
   } catch(err){
-    console.error('Arrival EmailJS send failed:',err);
+    console.error('Arrival email send failed:',err);
     showToast('Status updated, but arrival email could not be sent. Notify customer manually.','error');
   }
 }
@@ -1736,24 +1752,33 @@ async function sendDeliveredEmail(shipment,options){
     return;
   }
   try{
-    await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_DELIVERED_TEMPLATE_ID, {
-      email: shipment.email,
-      to_name: shipment.full_name || 'Customer',
-      tracking_number: shipment.tracking_number,
-      freight_type: shipment.freight_type,
-      origin: shipment.origin,
-      destination: shipment.destination,
-      update_location: shipment.update_location || '',
-      update_activity: shipment.update_activity || '',
-      delivered_date: options.deliveredDate || formatEmailTimestamp(),
-      received_by: shipment.received_by || '',
-      delivered_by: shipment.delivered_by || '',
-      proof_of_delivery_url: shipment.proof_of_delivery_url || '',
-      logo_url: COMPANY_LOGO_URL
+    const res=await fetch(CONFIG.scriptUrl,{
+      method:'POST',redirect:'follow',
+      headers:{'Content-Type':'text/plain'},
+      body:JSON.stringify({
+        action:'sendDeliveredEmail',
+        email: shipment.email,
+        full_name: shipment.full_name || 'Customer',
+        tracking_number: shipment.tracking_number,
+        freight_type: shipment.freight_type,
+        origin: shipment.origin,
+        destination: shipment.destination,
+        update_location: shipment.update_location || '',
+        update_activity: shipment.update_activity || '',
+        delivered_date: options.deliveredDate || formatEmailTimestamp(),
+        received_by: shipment.received_by || '',
+        delivered_by: shipment.delivered_by || '',
+        proof_of_delivery_url: shipment.proof_of_delivery_url || ''
+      })
     });
-    showToast(`Delivered email sent to ${shipment.email}`,'success');
+    const data=await res.json();
+    if(data && data.success){
+      showToast(`Delivered email sent to ${shipment.email}`,'success');
+    } else {
+      throw new Error((data&&data.error)||'Unknown error');
+    }
   } catch(err){
-    console.error('Delivered EmailJS send failed:',err);
+    console.error('Delivered email send failed:',err);
     showToast('Status updated, but delivered email could not be sent. Notify customer manually.','error');
   }
 }
