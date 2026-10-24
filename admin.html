@@ -365,6 +365,9 @@ tbody td{padding:13px 16px;font-size:13px;color:var(--text-dark);}
       <a onclick="showPage('users')" id="nav-users">
         <span class="nav-icon">👤</span> Users
       </a>
+      <a onclick="showPage('activity')" id="nav-activity" style="display:none;">
+        <span class="nav-icon">📜</span> Activity Log
+      </a>
     </nav>
     <div class="sidebar-bottom">
       <button class="logout-btn" onclick="logout()">
@@ -396,7 +399,7 @@ tbody td{padding:13px 16px;font-size:13px;color:var(--text-dark);}
           <div class="stat-card navy"><span class="s-num" id="stat-transit">0</span><div class="s-lbl">In Transit</div></div>
           <div class="stat-card green"><span class="s-num" id="stat-delivered">0</span><div class="s-lbl">Delivered</div></div>
           <div class="stat-card amber"><span class="s-num" id="stat-pending">0</span><div class="s-lbl">Pending / At Hub</div></div>
-          <div class="stat-card" style="border-top-color:#7c3aed;"><span class="s-num" id="stat-new-requests" style="color:#7c3aed;">0</span><div class="s-lbl">New Requests</div></div>
+          <div class="stat-card" id="statNewRequestsCard" style="border-top-color:#7c3aed;"><span class="s-num" id="stat-new-requests" style="color:#7c3aed;">0</span><div class="s-lbl">New Requests</div></div>
           <div class="stat-card" id="statPartnerAppsCard" style="border-top-color:var(--orange);cursor:pointer;" onclick="showPage('partner-apps')"><span class="s-num" id="stat-partner-apps" style="color:var(--orange);">0</span><div class="s-lbl">Pending Partner Applications</div></div>
         </div>
         <div class="card">
@@ -774,6 +777,29 @@ tbody td{padding:13px 16px;font-size:13px;color:var(--text-dark);}
       </div>
 
       <!-- USERS & ACTIVITY PAGE -->
+      <div class="page" id="page-activity">
+        <div class="settings-grid">
+          <div class="settings-card">
+            <h3>Activity Log</h3>
+            <p>Everything done by admins, staff, drivers and partners, recorded at each tracking stage. Only the super admin can see this page. Click a tracking number to see that shipment's full timeline.</p>
+            <div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:14px;">
+              <input type="text" id="actSearch" placeholder="Search user, action, stage, tracking number..." oninput="renderActivityLog()" style="flex:1;min-width:200px;padding:10px 14px;border:1.5px solid var(--border);border-radius:7px;font-size:14px;"/>
+              <select id="actRole" onchange="renderActivityLog()" style="padding:10px 14px;border:1.5px solid var(--border);border-radius:7px;font-size:14px;">
+                <option value="">All roles</option><option>Admin</option><option>Staff</option><option>Driver</option><option>Partner</option>
+              </select>
+              <button class="refresh-btn" onclick="loadActivityLog()">↻ Refresh</button>
+            </div>
+            <div id="actShipmentBar" style="display:none;margin-bottom:12px;padding:10px 14px;background:#fff7ed;border-radius:7px;font-size:13px;"></div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>Time</th><th>User</th><th>Role</th><th>Action</th><th>Tracking No.</th><th>Stage</th><th>Details</th></tr></thead>
+                <tbody id="activityTableBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div class="page" id="page-users">
         <div class="settings-grid">
           <div class="settings-card" id="manageUsersCard" style="display:none;">
@@ -781,7 +807,7 @@ tbody td{padding:13px 16px;font-size:13px;color:var(--text-dark);}
             <p>Everyone who can log into this dashboard, and their permission level.</p>
             <div class="table-wrap">
               <table>
-                <thead><tr><th>Username</th><th>Full Name</th><th>Role</th><th>Status</th><th></th></tr></thead>
+                <thead><tr><th>Username</th><th>Full Name</th><th>Email</th><th>Role</th><th>Status</th><th></th></tr></thead>
                 <tbody id="usersTableBody"></tbody>
               </table>
             </div>
@@ -796,6 +822,10 @@ tbody td{padding:13px 16px;font-size:13px;color:var(--text-dark);}
             <div class="fg">
               <label>Full Name</label>
               <input type="text" id="nu-fullname" placeholder="e.g. Jane Okafor, or a partner's business name"/>
+            </div>
+            <div class="fg">
+              <label>Email Address</label>
+              <input type="email" id="nu-email" placeholder="Used to send them shipment/delivery notifications"/>
             </div>
             <div class="fg">
               <label>Temporary Password</label>
@@ -1170,8 +1200,14 @@ async function postToScript(action,payload){
 // Activity logging has been removed — this is now a no-op kept in place so
 // the many existing call sites throughout the dashboard don't need to be
 // touched one by one.
-function logActivity(actionLabel,trackingNumber,details){
-  return;
+function logActivity(actionLabel,trackingNumber,details,stage){
+  if(!currentSession) return;
+  fetch(CONFIG.scriptUrl,{
+    method:'POST',redirect:'follow',
+    headers:{'Content-Type':'text/plain'},
+    body:JSON.stringify({action:'logActivity',username:currentSession.username,session_token:currentSession.token,
+      activity_action:actionLabel||'',tracking_number:trackingNumber||'',details:details||'',stage:stage||''})
+  }).catch(()=>{});
 }
 
 // Checks with the server that this session hasn't been force-logged-out by an
@@ -1235,7 +1271,7 @@ async function doStandaloneVerifyLogin(){
       err.style.display='block';
       return;
     }
-    saveSession({token:data.token,username:data.username,full_name:data.full_name,role:data.role});
+    saveSession({token:data.token,username:data.username,full_name:data.full_name,role:data.role,super_admin:data.super_admin});
   } catch(e){
     err.textContent='Could not reach the server. Check your connection and try again.';
     err.style.display='block';
@@ -1378,7 +1414,7 @@ async function acceptDelivery(trackingNumber,event){
     });
     if(updateRes.ok){
       showToast('Accepted — marked Out for Delivery','success');
-      logActivity('Accepted Delivery',s.tracking_number,'Marked Out for Delivery');
+      logActivity('Accepted Delivery',s.tracking_number,'Marked Out for Delivery','Out for Delivery');
       loadDriverDashboard();
     } else {
       showToast('Could not update. Check your connection and try again.','error');
@@ -1583,7 +1619,7 @@ async function reportVerifyException(trackingNumber,key,btnEl){
     });
     if(updateRes.ok){
       showToast(`Logged: ${update.label}`,'success');
-      logActivity('Delivery Exception (scan)',s.tracking_number,driverNote?`${update.label} — ${driverNote}`:update.label);
+      logActivity('Delivery Exception (scan)',s.tracking_number,driverNote?`${update.label} — ${driverNote}`:update.label,update.label);
       const updatedShipment=Object.assign({},s,{update_title:update.label,update_location:update.location,update_activity:activityText,driver_notes:driverNote,tracking_history:JSON.stringify(history)});
       renderVerifyCard(updatedShipment,contentBox);
     } else {
@@ -1676,7 +1712,7 @@ async function confirmDeliveryFromVerify(trackingNumber){
 
     if(updateRes.ok && updateData && updateData.success){
       showToast('Shipment marked as Delivered','success');
-      logActivity('Confirmed Delivery (scan)',s.tracking_number,`Received by ${receivedBy}`);
+      logActivity('Confirmed Delivery (scan)',s.tracking_number,`Received by ${receivedBy}`,'Delivered');
 
       const dtVal=document.getElementById('verifyDeliveredDatetime').value;
       const deliveredDate=dtVal?formatEmailTimestamp(new Date(dtVal)):formatEmailTimestamp();
@@ -2145,7 +2181,7 @@ async function login(){
     });
     const data=await res.json();
     if(data && data.success){
-      saveSession({token:data.token,username:data.username,full_name:data.full_name,role:data.role});
+      saveSession({token:data.token,username:data.username,full_name:data.full_name,role:data.role,super_admin:data.super_admin});
       document.getElementById('pwInput').value='';
       showAdmin();
     } else {
@@ -2214,6 +2250,10 @@ function showAdmin(){
     document.getElementById('nav-settings').style.display=isAdminRole()?'flex':'none';
     const navRequests=document.getElementById('nav-requests');
     if(navRequests) navRequests.style.display=isPartnerRole()?'none':'flex';
+    const navActivity=document.getElementById('nav-activity');
+    if(navActivity) navActivity.style.display=(isAdminRole()&&currentSession.super_admin!==false)?'flex':'none';
+    const statNewRequestsCard=document.getElementById('statNewRequestsCard');
+    if(statNewRequestsCard) statNewRequestsCard.style.display=isPartnerRole()?'none':'block';
     const navPartnerApps=document.getElementById('nav-partner-apps');
     if(navPartnerApps) navPartnerApps.style.display=(isAdminRole()&&PARTNER_APPS_VISIBLE_IN_ADMIN)?'flex':'none';
     const statPartnerAppsCard=document.getElementById('statPartnerAppsCard');
@@ -2261,7 +2301,7 @@ function showPage(page){
   const navKey = (page==='batch-detail') ? 'batches' : (page==='verify' ? '' : page);
   const navEl = document.getElementById('nav-'+navKey);
   if(navEl) navEl.classList.add('active');
-  const titles={dashboard:'Dashboard',shipments:'All Shipments',add:'Add New Shipment',batches:'Shipment Batches','batch-detail':'Batch Details',requests:'Quote Requests',settings:'Settings',users:'Users',verify:'Shipment Verification'};
+  const titles={dashboard:'Dashboard',shipments:'All Shipments',add:'Add New Shipment',batches:'Shipment Batches','batch-detail':'Batch Details',requests:'Quote Requests',settings:'Settings',users:'Users',activity:'Activity Log',verify:'Shipment Verification'};
   document.getElementById('pageTitle').textContent=titles[page]||'';
   if(page==='add')generateTrackingNumber();
   if(page==='requests')loadRequests();
@@ -2270,6 +2310,66 @@ function showPage(page){
   if(page==='users'){
     if(isAdminRole()) loadUsers();
   }
+  if(page==='activity'&&isAdminRole()){
+    activityTrackingFilter='';
+    loadActivityLog();
+  }
+}
+
+// ===== ACTIVITY LOG (super admin only; the server enforces this too) =====
+let allActivity=[];
+let activityTrackingFilter='';
+function escAct(v){
+  return String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+async function loadActivityLog(trackingNumber){
+  if(trackingNumber!==undefined) activityTrackingFilter=trackingNumber||'';
+  const tbody=document.getElementById('activityTableBody');
+  tbody.innerHTML='<tr><td colspan="7" class="empty-state">Loading...</td></tr>';
+  try{
+    const data=await postToScript('getActivityLog',{limit:1000,tracking_number:activityTrackingFilter});
+    if(data&&data.error){
+      allActivity=[];
+      tbody.innerHTML=`<tr><td colspan="7" class="empty-state">${escAct(data.error)}</td></tr>`;
+      return;
+    }
+    allActivity=(data&&data.logs)||[];
+    renderActivityLog();
+  }catch(e){
+    tbody.innerHTML='<tr><td colspan="7" class="empty-state">Could not load the activity log. Check your connection and try Refresh.</td></tr>';
+  }
+}
+function clearActivityFilter(){
+  activityTrackingFilter='';
+  loadActivityLog();
+}
+function renderActivityLog(){
+  const q=(document.getElementById('actSearch').value||'').toLowerCase();
+  const role=document.getElementById('actRole').value;
+  let rows=allActivity.filter(l=>(!role||l.role===role)&&(!q||[l.full_name,l.username,l.activity_action,l.tracking_number,l.stage,l.details].join(' ').toLowerCase().includes(q)));
+  const bar=document.getElementById('actShipmentBar');
+  if(activityTrackingFilter){
+    rows=rows.slice().sort((a,b)=>a.ts-b.ts);
+    bar.innerHTML=`Timeline for <strong>${escAct(activityTrackingFilter)}</strong>, oldest first. <a href="#" onclick="clearActivityFilter();return false;" style="color:var(--orange);font-weight:700;">Show all activity</a>`;
+    bar.style.display='block';
+  } else {
+    bar.style.display='none';
+  }
+  const tbody=document.getElementById('activityTableBody');
+  if(rows.length===0){
+    tbody.innerHTML='<tr><td colspan="7" class="empty-state">No activity found.</td></tr>';
+    return;
+  }
+  tbody.innerHTML=rows.map(l=>`
+    <tr>
+      <td style="white-space:nowrap;font-size:12px;">${escAct(l.timestamp)}</td>
+      <td>${escAct(l.full_name||l.username)}</td>
+      <td>${escAct(l.role)}</td>
+      <td><strong>${escAct(l.activity_action)}</strong></td>
+      <td>${l.tracking_number?`<a href="#" onclick="loadActivityLog('${escAct(l.tracking_number)}');return false;" style="color:var(--orange);font-weight:700;">${escAct(l.tracking_number)}</a>`:''}</td>
+      <td>${escAct(l.stage)}</td>
+      <td style="font-size:12px;">${escAct(l.details)}</td>
+    </tr>`).join('');
 }
 
 let currentBatchId=null;
@@ -2506,17 +2606,6 @@ async function addShipment(){
     showToast('Please fill all required fields','error');return;
   }
 
-  // ===== TEMPORARY / EXPERIMENTAL — added 14 Sep 2026 at client's request =====
-  // Partners are intentionally blocked from creating shipments for now while
-  // this is tested pre-launch. Nothing is saved; the partner sees a clear
-  // error, not a fake success. To restore normal partner shipment creation,
-  // delete this whole block (between the === markers).
-  if(isPartnerRole()){
-    showToast('Unable to create shipment right now. Please try again later.','error');
-    return;
-  }
-  // ===== END TEMPORARY / EXPERIMENTAL BLOCK =====
-
   const exists=allShipments.find(s=>s.tracking_number===tracking);
   if(exists){showToast('Tracking number already exists','error');return;}
 
@@ -2565,12 +2654,12 @@ async function addShipment(){
     const res=await fetch(CONFIG.scriptUrl,{
       method:'POST',redirect:'follow',
       headers:{'Content-Type':'text/plain'},
-      body:JSON.stringify(Object.assign({action:'addShipment'},newShipment))
+      body:JSON.stringify(Object.assign({action:'addShipment',username:currentSession?currentSession.username:'',session_token:currentSession?currentSession.token:''},newShipment))
     });
     const result=await res.json();
     if(result&&result.success){
       showToast(`Shipment ${tracking} created successfully`,'success');
-      logActivity('Added Shipment',tracking,`${freight}: ${origin} to ${dest}`);
+      logActivity('Added Shipment',tracking,`${freight}: ${origin} to ${dest}`,initialStage.label);
       sendTrackingEmail(newShipment);
       await loadShipments();
       showPage('shipments');
@@ -2954,7 +3043,7 @@ async function saveStatus(){
     if(res.ok){
       const stageName=stages[selectedStatus]?stages[selectedStatus].label:'Updated';
       showToast(`Status updated: ${payload.update_title||stageName}`,'success');
-      logActivity('Updated Status',editingTracking,payload.update_title||stageName);
+      logActivity('Updated Status',editingTracking,payload.update_title||stageName,stageName);
 
       // Auto-send a notification email for milestone stages (arrival / delivered),
       // detected generically so it works for every route, including the new
@@ -3281,7 +3370,7 @@ async function confirmBatchStatusUpdate(batchId){
       });
       if(res.ok){
         updated++;
-        logActivity('Batch Updated Status',s.tracking_number,stageInfo.label);
+        logActivity('Batch Updated Status',s.tracking_number,stageInfo.label,stageInfo.label);
         // Auto-send milestone notification emails (arrival / delivered), detected
         // generically so it works across every route/stage-count.
         if(s.email){
@@ -3394,13 +3483,17 @@ async function loadUsers(){
 function renderUsersTable(users){
   const tbody=document.getElementById('usersTableBody');
   if(!users||users.length===0){
-    tbody.innerHTML=`<tr><td colspan="5" class="empty-state">No users yet.</td></tr>`;
+    tbody.innerHTML=`<tr><td colspan="6" class="empty-state">No users yet.</td></tr>`;
     return;
   }
   tbody.innerHTML=users.map(u=>`
     <tr>
       <td>${u.username}</td>
       <td>${u.full_name||''}</td>
+      <td style="font-size:12px;">
+        ${u.email?u.email:'<span style="color:var(--text);opacity:0.6;">Not set</span>'}
+        <button class="action-btn edit" style="margin-left:6px;padding:2px 8px;font-size:11px;" onclick="editUserEmail('${u.username}','${(u.email||'').replace(/'/g,"\\'")}')">${u.email?'Edit':'Set'}</button>
+      </td>
       <td>${u.role||'Staff'}</td>
       <td>${u.active===false?'<span style="color:var(--danger);">Deactivated</span>':(u.online?'<span style="color:#16a34a;">● Online</span>':'Offline')}</td>
       <td style="white-space:nowrap;">
@@ -3411,23 +3504,53 @@ function renderUsersTable(users){
   `).join('');
 }
 
+// Lets an Admin set or correct a user's notification email after the account
+// already exists (covers accounts created before this field was added, or
+// simple typo fixes).
+async function editUserEmail(username,currentEmail){
+  if(!isAdminRole()){showToast('Only Admin users can do that','error');return;}
+  const newEmail=window.prompt(`Notification email for ${username}:`,currentEmail||'');
+  if(newEmail===null)return; // cancelled
+  const trimmed=newEmail.trim();
+  if(trimmed && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)){
+    showToast('That email address doesn\'t look valid','error');
+    return;
+  }
+  try{
+    const data=await postToScript('updateUserEmail',{target_username:username,email:trimmed});
+    if(data && data.success){
+      showToast(`Email updated for ${username}`,'success');
+      loadUsers();
+    } else {
+      showToast((data&&data.error)||'Could not update email','error');
+    }
+  }catch(e){
+    showToast('Network error. Check your connection and try again.','error');
+  }
+}
+
 async function addUser(){
   if(!isAdminRole()){showToast('Only Admin users can add users','error');return;}
   const username=document.getElementById('nu-username').value.trim();
   const full_name=document.getElementById('nu-fullname').value.trim();
+  const email=document.getElementById('nu-email').value.trim();
   const password=document.getElementById('nu-password').value;
   const role=document.getElementById('nu-role').value;
   if(!username||!full_name||!password){
     showToast('Please fill in username, full name and a temporary password','error');
     return;
   }
+  if(email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){
+    showToast('That email address doesn\'t look valid','error');
+    return;
+  }
   try{
     const password_hash=await sha256Hex(password);
-    const data=await postToScript('addUser',{new_username:username,full_name,password_hash,role});
+    const data=await postToScript('addUser',{new_username:username,full_name,email,password_hash,role});
     if(data && data.success){
       showToast(`User ${username} created`,'success');
       logActivity('Added User','',`Created user ${username} (${role})`);
-      ['nu-username','nu-fullname','nu-password'].forEach(id=>document.getElementById(id).value='');
+      ['nu-username','nu-fullname','nu-email','nu-password'].forEach(id=>document.getElementById(id).value='');
       loadUsers();
     } else {
       showToast((data&&data.error)||'Could not create user','error');
